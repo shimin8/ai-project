@@ -1,4 +1,5 @@
 import mongoose, { Schema } from "mongoose";
+import MongoDBLogger from "../database/logger.db.js";
 
 const LifeThirdPartyApiLogSchema = new mongoose.Schema(
     {
@@ -25,6 +26,7 @@ const LifeThirdPartyApiLogSchema = new mongoose.Schema(
     }
 );
 
-const LifeThirdPartyApiLog = mongoose.model("LifeThirdPartyApiLog", LifeThirdPartyApiLogSchema);
+const dbConnection = MongoDBLogger.getConnection();
+const LifeThirdPartyApiLogModel = dbConnection.model("LifeThirdPartyApiLogModel", LifeThirdPartyApiLogSchema);
 
-export default LifeThirdPartyApiLog;
+export default LifeThirdPartyApiLogModel;

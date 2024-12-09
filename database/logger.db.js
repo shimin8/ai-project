@@ -10,6 +10,13 @@ export default class MongoDBLogger {
         }
     }
     
+    static getConnection() {
+        if (!MongoDBLogger.connection) {
+            MongoDBLogger.connection = MongoDBLogger.connect();
+        }
+        return MongoDBLogger.connection;
+    }
+
     static connect() {
         try {
 

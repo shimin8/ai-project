@@ -1,4 +1,7 @@
-import LifeThirdPartyApiLog from "../models/LifeThirdPartyApiLogModel.js";
+import LifeThirdPartyApiLogModel from "../models/LifeThirdPartyApiLogModel.js";
+import axios from "axios";
+import Constants from "../constants.js";
+import GeminiQuotesResponseModel from "../models/GeminiQuotesModel.js"
 
 export default class GeminiService {
 
@@ -13,13 +16,14 @@ export default class GeminiService {
         try {
             const reqBody = req.body;
             const { query, projection, options } = this.getQuery(reqBody);
-            const data = [];//await LifeThirdPartyApiLog.find(query, projection, options);
+            const data = await LifeThirdPartyApiLogModel.find(query, projection, options);
             const geminiRes = await this.geminiAPIResponse(reqBody, data);
-            // await GeminiQuotesResponseModel.insertMany(geminiRes);
+            // const records = await GeminiQuotesResponseModel.find({ insurer: "digit_life" }, { limit: 5 });
+            await GeminiQuotesResponseModel.insertMany(geminiRes);
             // await this.sendDataToDataDog(geminiRes);
             return geminiRes;
         } catch (err) {
-            console.log("line 26", err)
+            console.log('#### line 26 ####', err)
             throw err;
         }
     }
@@ -81,7 +85,7 @@ export default class GeminiService {
                     ],
                 });
         
-                const options = {
+                const config = {
                     method: 'post',
                     url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=' + process.env.GEMINI_API_KEY,
                     headers: {
@@ -92,16 +96,16 @@ export default class GeminiService {
                     timeout: 20000,
                 };
 
-                // responseArr.push(LifeRestHttpUtil.sendPostRequest(options));
+                // responseArr.push(this.sendPostRequest(config));
                 let retryFlag = true;
                 let retryCount = 0;
                 while (retryFlag && retryCount <= this.retryLimit) {
                     try {
                         retryCount++;
-                        responseArr.push(await LifeRestHttpUtil.sendPostRequest(options));
+                        responseArr.push(await this.sendPostRequest(config));
                         retryFlag = false;
                     } catch (err) {
-                        console.log('line 87', retryCount, err);
+                        console.log('#### line 87 ####', retryCount, err);
                     }
                 }
             }
@@ -113,14 +117,14 @@ export default class GeminiService {
             //     throw err;
             // }
 
+            const C = new Constants();
             const geminiRes = [];
             for (const res of responseArr) {
-                let semiParsedRes = JSON.parse(res.response);
                 try {
-                    if (!Utils.isEmpty(semiParsedRes.error) && semiParsedRes.error.status === this.resouceExhaustedError) {
+                    if (res.error && res.error.status === this.resouceExhaustedError) {
                         continue;
                     }
-                    const actualText = semiParsedRes.candidates[0].content.parts[0].text;
+                    const actualText = res.candidates[0].content.parts[0].text;
                     // if (actualText.slice(-3) !== "```") {
                     //     console.log('actualText: ', actualText);
                     //     continue;
@@ -139,14 +143,24 @@ export default class GeminiService {
                     }
                     geminiRes.push(...semiParsedResArr);
                 } catch (err) {
-                    console.log('line 118: ', err);
+                    console.log('#### line 118 ####', err);
                 }
             }
 
             return geminiRes;
         } catch (err) {
-            console.log('line 124: ', err);
+            console.log('#### line 124 ####', err);
             err.text = "Gemini gave an error"
+            throw err;
+        }
+    }
+
+    async sendPostRequest(config) {
+        try {
+            const apiRes = await axios(config);
+            return apiRes.data;
+        } catch (err) {
+            console.log("#### line 158 ####", err);
             throw err;
         }
     }
@@ -154,7 +168,7 @@ export default class GeminiService {
     // async sendDataToDataDog(jsonData) {
     //     try {
 
-    //         const options = {
+    //         const config = {
     //             method: 'post',
     //             url: 'https://http-intake.logs.datadoghq.com/v1/input',
     //             headers: {
@@ -165,7 +179,7 @@ export default class GeminiService {
     //             json: true,
     //         };
 
-    //         const apiResponse = await LifeRestHttpUtil.sendPostRequest(options);
+    //         const apiResponse = await sendPostRequest(config);
     //         console.log(apiResponse);
     //     } catch (err) {
     //         throw err;

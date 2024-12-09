@@ -5,6 +5,19 @@ const C = new Constants();
 export default class MongoDB {
 
     constructor() {
+        if (!MongoDB.connection) {
+            MongoDB.connect();
+        }
+    }
+    
+    static getConnection() {
+        if (!MongoDB.connection) {
+            MongoDB.connection = MongoDB.connect();
+        }
+        return MongoDB.connection;
+    }
+
+    static connect() {
         try {
 
             const mongooseOptions = {
@@ -15,7 +28,7 @@ export default class MongoDB {
                 serverSelectionTimeoutMS: 30000
             };
 
-            const mongoURI = this.getMongoURI();
+            const mongoURI = MongoDB.getMongoURI();
     
             // use createConnection instead of calling mongoose.connect so we can use multiple connections
             MongoDB.connection = mongoose.createConnection(mongoURI, mongooseOptions);
@@ -35,13 +48,15 @@ export default class MongoDB {
             MongoDB.connection.on("disconnected", (err) => {
                 console.log("MongoDB disconnected!");
             });
+
+            return MongoDB.connection;
         } catch (err) {
             console.error('Error connecting to MongoDB:', err.message);
             process.exit(1);
         }
     }
 
-    getMongoURI() {
+    static getMongoURI() {
 
         let mongodbConnectionString = "";
         if (!C.mongoDBConfig.authSource) {
