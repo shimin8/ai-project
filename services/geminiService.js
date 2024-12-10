@@ -20,6 +20,7 @@ export default class GeminiService {
             const geminiRes = await this.geminiAPIResponse(reqBody, data);
             // const records = await GeminiQuotesResponseModel.find({ insurer: "digit_life" }, { limit: 5 });
             await GeminiQuotesResponseModel.insertMany(geminiRes);
+            await this.sendDataToNewRelic(geminiRes);
             // await this.sendDataToDataDog(geminiRes);
             return geminiRes;
         } catch (err) {
@@ -84,7 +85,7 @@ export default class GeminiService {
                         },
                     ],
                 });
-        
+
                 const config = {
                     method: 'post',
                     url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=' + process.env.GEMINI_API_KEY,
@@ -161,6 +162,38 @@ export default class GeminiService {
             return apiRes.data;
         } catch (err) {
             console.log("#### line 158 ####", err);
+            throw err;
+        }
+    }
+
+    async sendDataToNewRelic(jsonData) {
+        try {
+
+            const formattedData = [];
+            for (const obj of jsonData) {
+                formattedData.push({
+                    message: obj.errorMsg,
+                    attributes: {
+                        ...obj
+                    }
+                });
+            }
+            const config = {
+                method: 'post',
+                url: 'https://log-api.newrelic.com/log/v1',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Api-Key': process.env.NEW_RELIC_LICENSE_KEY,
+                },
+                data: formattedData,
+                json: false,
+                timeout: 20000,
+            };
+
+            const apiRes = await this.sendPostRequest(config);
+            return apiRes;
+        } catch (err) {
+            console.log("### line 173 ###", err);
             throw err;
         }
     }
